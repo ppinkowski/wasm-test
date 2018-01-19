@@ -1,0 +1,1 @@
+emcc sparkly.cpp -s WASM=1 -o sparkly.js -std=c++11 -s "EXTRA_EXPORTED_RUNTIME_METHODS=['addOnPostRun']" --bind --js-library funcs.js
