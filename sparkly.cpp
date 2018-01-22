@@ -33,6 +33,10 @@ class Sparkly {
     private:
 
         const int MAX_ELEMENTS = 2000;
+        const double GRAVITY_PER_FRAME = 0.163333;
+        const double OPACITY_CHANGE_RATE = 0.005;
+        const double COLOR_CHANGE_RATE = 0.02;
+        const double BOUNCE_MULTIPLIER = 0.8;
 
         int width;
         int height;
@@ -67,6 +71,7 @@ class Sparkly {
                 for (int y = py - el.radius; y < py + el.radius; y++) {
                     int dx = x - px;
                     int dy = y - py;
+                    // draw circle - draw pixel if it is within the radius of the circle
                     if ((dx * dx) + (dy * dy) <= (el.radius * el.radius)) {
                         uint8_t opacityOffset = (uint8_t)round(fmax(el.opacity * 255, 0));
                         uint8_t colorOffset = std::min((int)round(el.colorOffset * 255), 255);
@@ -92,32 +97,40 @@ class Sparkly {
             return el;
         }
 
+        // increment element position and adjust velocity for this frame
         void incrementPosition(element *el, double posX, double posY) {
+            // update position according to velocity
             el->x += el->velocityX;
             el->y += el->velocityY;
-            el->velocityY += 0.163333;
-            el->opacity -= 0.005 * (10 / (1 + (rand() % 15)));
-            el->colorOffset += 0.02;
-            const double bounceMultiplier = 0.8;
+            // apply gravity change to velocity
+            el->velocityY += GRAVITY_PER_FRAME;
+            // element fades as time progresses. Add an element of randomness
+            el->opacity -= OPACITY_CHANGE_RATE * (10 / (1 + (rand() % 15)));
+            // color changes as time progresses
+            el->colorOffset += COLOR_CHANGE_RATE;
+
             int rad = el->radius;
+
+            // if element has disappeared, recycle element
             if (el->opacity <= 0.1) {
                 initialiseElement(el, posX, posY);
             } else {
+                // if element is moving offscreen, bounce of the edge
                 if ((el->y + rad) > height) {
                     el->y = height - rad;
-                    el->velocityY = (-el->velocityY * bounceMultiplier);
+                    el->velocityY = (-el->velocityY * BOUNCE_MULTIPLIER);
                 }
                 if ((el->y - rad) < 0) {
                     el->y = rad;
-                    el->velocityY = (-el->velocityY * bounceMultiplier);
+                    el->velocityY = (-el->velocityY * BOUNCE_MULTIPLIER);
                 }
                 if((el->x + rad) > width) {
                     el->x = width - rad;
-                    el->velocityX = (-el->velocityX * bounceMultiplier);
+                    el->velocityX = (-el->velocityX * BOUNCE_MULTIPLIER);
                 }
                 if ((el->x - rad) < 0) {
                     el->x = rad;
-                    el->velocityX = (-el->velocityX * bounceMultiplier);
+                    el->velocityX = (-el->velocityX * BOUNCE_MULTIPLIER);
                 }
             }
         }
@@ -147,11 +160,13 @@ class Sparkly {
 
         emscripten::val drawFrame(double posXRaw, double posYRaw) {
             
+            // reset frame to transparent black
             memset(buffer, 0, bufferSize);
 
             int posX = std::min(posXRaw, (double)width);
             int posY = std::min(posYRaw, (double)height);
 
+            // introduce elements gradually, whisk to combine
             double prevIndex = currentElementIndex;
             if (currentElementIndex < MAX_ELEMENTS) {
                 currentElementIndex = std::min(MAX_ELEMENTS, currentElementIndex + (rand() % 10));
